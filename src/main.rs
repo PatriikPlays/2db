@@ -61,7 +61,7 @@ fn main() {
         }
     };
 
-    if (is_image_array) {
+    if is_image_array {
         let image_array: poster::Img2dArray;
 
         if input_format_type == poster::ImgFormat::JSON {
