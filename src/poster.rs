@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::io::{BufReader, ErrorKind, Read};
 use std::path::PathBuf;
 use std::fs::File;
-use std::{fmt, io};
+use std::{fmt, io, u32};
 use std::fmt::Formatter;
 
 #[derive(Serialize, Deserialize)]
@@ -92,55 +92,123 @@ pub fn read_2db(file: &PathBuf) -> Result<Img2d,io::Error> {
         height: 0,
     };
 
-    /*
     let mut ptr: usize = 0;
 
-    let label_length: u16= {
+    //
+    // Label
+    //
+    let label_length: u16 = {
         if ptr + 1 + 2 <= bytes_length {
-            ptr += 2;
             u16::from_le_bytes(bytes[ptr..ptr + 2].try_into().expect("Failed to get label length u16 (Input probably corrupted)"))
         } else { return Err(io::Error::new(ErrorKind::InvalidInput, "Could not get label length u16 (Buffer would overflow)")) }
     };
-    let label: String = {
-        let mut str = String::new();
-        if label_length == 0 { str }
-        if ptr + 1 + label_length as usize <= bytes_length {
-            for i in ptr..ptr+label_length as usize {
-                str.push(u8::from_le(0) as char);
+    ptr += 2;
+
+    let mut label = String::new();
+    if label_length != 0 {
+        let start_ptr = ptr.clone();
+        if start_ptr + 1 + label_length as usize <= bytes_length {
+            for i in start_ptr..start_ptr+label_length as usize {
+                let char = bytes[ptr] as char;
+                if !char.is_ascii_control() {
+                    label.push(char);
+                } else {
+                    println!("WARNING: Ignoring ASCII control character in label")
+                }
+                ptr += 1;
             }
         } else { return Err(io::Error::new(ErrorKind::InvalidInput, "Could not get label (Buffer would overflow)")) }
-        str
+    }
+    // Label END
+
+    //
+    // Tooltip
+    //
+    let tooltip_length: u16 = {
+        if ptr + 1 + 2 <= bytes_length {
+            u16::from_le_bytes(bytes[ptr..ptr + 2].try_into().expect("Failed to get tooltip length u16 (Input probably corrupted)"))
+        } else { return Err(io::Error::new(ErrorKind::InvalidInput, "Could not get tooltip length u16 (Buffer would overflow)")) }
     };
-
-    let label_length = u16::from_le_bytes(bytes[ptr..ptr+2].try_into().unwrap());
     ptr += 2;
-    image.label = String::from_utf8_lossy(&bytes[ptr..ptr+label_length as usize]).to_string();
-    ptr += label_length as usize;
 
-    let tooltip_length = u16::from_le_bytes(bytes[ptr..ptr+2].try_into().unwrap());
-    ptr += 2;
-    image.tooltip = String::from_utf8_lossy(&bytes[ptr..ptr+tooltip_length as usize]).to_string();
-    ptr += tooltip_length as usize;
-
-    image.width = u32::from_le_bytes(bytes[ptr..ptr+4].try_into().unwrap());
-    ptr += 4;
-
-    image.height = u32::from_le_bytes(bytes[ptr..ptr+4].try_into().unwrap());
-    ptr += 4;
-
-    let palette_length = u32::from_le_bytes(bytes[ptr..ptr+4].try_into().unwrap());
-    ptr += 4;
-    for i in 0..palette_length {
-        image.palette.push(u32::from_le_bytes(bytes[ptr+i as usize*4..ptr+i as usize*4+4].try_into().unwrap()));
+    let mut tooltip = String::new();
+    if tooltip_length != 0 {
+        let start_ptr = ptr.clone();
+        if start_ptr + 1 + tooltip_length as usize <= bytes_length {
+            for i in start_ptr..start_ptr+tooltip_length as usize {
+                let char = bytes[ptr] as char;
+                if !char.is_ascii_control() {
+                    tooltip.push(char);
+                } else {
+                    println!("WARNING: Ignoring ASCII control character in tooltip")
+                }
+                ptr += 1;
+            }
+        } else { return Err(io::Error::new(ErrorKind::InvalidInput, "Could not get tooltip (Buffer would overflow)")) }
     }
-    ptr += palette_length as usize * 4;
+    // Tooltip END
 
-    let pixels_length = u32::from_le_bytes(bytes[ptr..ptr+4].try_into().unwrap());
+    //
+    // Width and Height
+    //
+    let width: u32 = {
+        if ptr + 1 + 4 <= bytes_length {
+            u32::from_le_bytes(bytes[ptr..ptr + 4].try_into().expect("Failed to get width u32 (Input probably corrupted)"))
+        } else { return Err(io::Error::new(ErrorKind::InvalidInput, "Could not get width u32 (Buffer would overflow)")) }
+    };
     ptr += 4;
-    for i in 0..pixels_length {
-        image.pixels.push(bytes[ptr+i as usize] );
-    }
-     */
+
+    let height: u32 = {
+        if ptr + 1 + 4 <= bytes_length {
+            u32::from_le_bytes(bytes[ptr..ptr + 4].try_into().expect("Failed to get height u32 (Input probably corrupted)"))
+        } else { return Err(io::Error::new(ErrorKind::InvalidInput, "Could not get height u32 (Buffer would overflow)")) }
+    };
+    ptr += 4;
+    // Width and Height END
+
+    //
+    // Palette
+    //
+    let palette_length: u8 = {
+        if ptr + 1 + 1 <= bytes_length {
+            u8::from_le_bytes(bytes[ptr..ptr + 1].try_into().expect("Failed to get palette length u8 (Input probably corrupted)"))
+        } else { return Err(io::Error::new(ErrorKind::InvalidInput, "Could not get palette length u8 (Buffer would overflow)")) }
+    };
+    ptr += 1;
+
+    let mut palette: Vec<u32> = Vec::new();
+    if ptr + 1 + (palette_length as usize * 4) <= bytes_length {
+        for i in (ptr..ptr+(palette_length as usize*4)).step_by(4) {
+            palette.push(u32::from_le_bytes(bytes[i..i+4].try_into().expect("Failed to get palette (Input probably corrupted)")));
+            ptr += 4;
+        }
+    } else { return Err(io::Error::new(ErrorKind::InvalidInput, "Could not get palette (Buffer would overflow)")) }
+    // Palette END
+
+    //
+    // Pixels
+    //
+    let pixels_length: u32 = {
+        if ptr + 1 + 4 <= bytes_length {
+            u32::from_le_bytes(bytes[ptr..ptr + 4].try_into().expect("Failed to get pixels length u32 (Input probably corrupted)"))
+        } else { return Err(io::Error::new(ErrorKind::InvalidInput, "Could not get pixels length u32 (Buffer would overflow)")) }
+    };
+    ptr += 4;
+
+    let mut pixels: Vec<u8> = Vec::new();
+    if ptr + 1 + pixels_length as usize <= bytes_length {
+        for i in ptr..ptr+(pixels_length as usize) {
+            pixels.push(bytes[i]);
+        }
+    } else { return Err(io::Error::new(ErrorKind::InvalidInput, "Could not get pixels (Buffer would overflow)")) }
+    // Pixels END
+
+    image.label = Some(label);
+    image.tooltip = Some(tooltip);
+    image.width = width;
+    image.height = height;
+    image.palette = palette;
+    image.pixels = pixels;
 
     return Ok(image);
 }
