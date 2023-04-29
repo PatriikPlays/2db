@@ -63,7 +63,7 @@ fn read_file_as_string(file: &PathBuf) -> Result<String, io::Error> {
 }
 
 pub fn read_2dj(file: &PathBuf) -> Result<Img2d,io::Error> {
-    let data = read_file_as_string(&file)?;
+    let data = read_file_as_string(file)?;
 
     let image: Img2d = serde_json::from_str(&data)?;
 
@@ -71,27 +71,28 @@ pub fn read_2dj(file: &PathBuf) -> Result<Img2d,io::Error> {
 }
 
 pub fn read_2dja(file: &PathBuf) -> Result<Img2dArray,io::Error> {
-    let data = read_file_as_string(&file)?;
+    let data = read_file_as_string(file)?;
 
     let image_array: Img2dArray = serde_json::from_str(&data)?;
 
     return Ok(image_array);
 }
 
-/*
-pub fn read_2db(file: PathBuf) -> Result<Img2d,io::Error> {
+
+pub fn read_2db(file: &PathBuf) -> Result<Img2d,io::Error> {
     let bytes = read_file_as_bytes(file)?;
     let bytes_length = bytes.len();
 
     let mut image = Img2d {
-        label: "".to_string(),
-        tooltip: "".to_string(),
+        label: None,
+        tooltip: None,
         palette: vec![],
         pixels: vec![],
         width: 0,
         height: 0,
     };
 
+    /*
     let mut ptr: usize = 0;
 
     let label_length: u16= {
@@ -111,7 +112,6 @@ pub fn read_2db(file: PathBuf) -> Result<Img2d,io::Error> {
         str
     };
 
-    /*
     let label_length = u16::from_le_bytes(bytes[ptr..ptr+2].try_into().unwrap());
     ptr += 2;
     image.label = String::from_utf8_lossy(&bytes[ptr..ptr+label_length as usize]).to_string();
@@ -145,17 +145,17 @@ pub fn read_2db(file: PathBuf) -> Result<Img2d,io::Error> {
     return Ok(image);
 }
 
-pub fn read_2dba(file: PathBuf) -> Result<Img2dArray,io::Error> {
+pub fn read_2dba(file: &PathBuf) -> Result<Img2dArray,io::Error> {
     let bytes = read_file_as_bytes(file)?;
 
     let mut imageArray = Img2dArray {
         width: 0,
         height: 0,
-        title: "".to_string(),
+        title: None,
         pages: Vec::new(),
     };
 
     return Ok(imageArray);
 }
-*/
+
 

@@ -1,5 +1,6 @@
 mod poster;
 
+use std::fs;
 use clap::{arg, ArgMatches, command, value_parser};
 use std::path::PathBuf;
 
@@ -36,18 +37,91 @@ fn main() {
         "bin" => poster::ImgFormat::Binary,
         "b" => poster::ImgFormat::Binary,
         _ => {
-            println!("Invalid output format supplied, valid formats are (json,binary)");
+            println!("Invalid output format supplied, valid formats are (json,binary).");
             return;
         }
     };
 
-    if output_format_type == poster::ImgFormat::JSON {
-        println!("jaeva scribe");
-    } else if output_format_type == poster::ImgFormat::Binary {
-        println!("bibnary");
-    }
+    let input_file_extension = match input.extension() {
+        Some(ext) => ext.to_str().unwrap(),
+        None => {
+            println!("Input file has no extension, has to be 2dj/2dja/2db/2dba.");
+            return;
+        }
+    };
 
-    //println!("{}",poster::read_2dj(input).unwrap());
+    let (input_format_type, is_image_array) = match input.extension().expect("Failed to get extension of input file.").to_ascii_lowercase().to_str().expect("Failed to convert input file extension to str.") {
+        "2dj" => (poster::ImgFormat::JSON, false),
+        "2db" => (poster::ImgFormat::Binary, false),
+        "2dja" => (poster::ImgFormat::JSON, true),
+        "2dba" => (poster::ImgFormat::Binary, true),
+        _ => {
+            println!("Invalid input file file extension, has to be 2dj/2dja/2db/2dba.");
+            return;
+        }
+    };
+
+    if (is_image_array) {
+        let image_array: poster::Img2dArray;
+
+        if input_format_type == poster::ImgFormat::JSON {
+            image_array = match poster::read_2dja(input) {
+                Ok(t) => t,
+                Err(e) => {
+                    println!("Failed to read input image array (2dja): {}",e);
+                    return
+                }
+            };
+        } else if input_format_type == poster::ImgFormat::Binary {
+            image_array = match poster::read_2dba(input) {
+                Ok(t) => t,
+                Err(e) => {
+                    println!("Failed to read input image array (2dba): {}",e);
+                    return
+                }
+            };
+        } else {
+            panic!("Invalid input format type");
+        }
+
+        let mut out_path = output.clone();
+        if output_format_type == poster::ImgFormat::JSON {
+            out_path.set_extension("2dja");
+            fs::write(out_path, serde_json::to_string(&image_array).expect("Failed to parse image data to JSON")).expect("Failed to write to output file.");
+        } else if output_format_type == poster::ImgFormat::Binary {
+            out_path.set_extension("2dba");
+        }
+    } else {
+        let image: poster::Img2d;
+
+        if input_format_type == poster::ImgFormat::JSON {
+            image = match poster::read_2dj(input) {
+                Ok(t) => t,
+                Err(e) => {
+                    println!("Failed to read input image (2dj): {}",e);
+                    return
+                }
+            };
+        } else if input_format_type == poster::ImgFormat::Binary {
+            image = match poster::read_2db(input) {
+                Ok(t) => t,
+                Err(e) => {
+                    println!("Failed to read input image (2db): {}",e);
+                    return
+                }
+            };
+        } else {
+            panic!("Invalid input format type");
+        }
+
+        let mut out_path = output.clone();
+        if output_format_type == poster::ImgFormat::JSON {
+            out_path.set_extension("2dj");
+            fs::write(out_path, serde_json::to_string(&image).expect("Failed to parse image data to JSON")).expect("Failed to write to output file.");
+        } else if output_format_type == poster::ImgFormat::Binary {
+            out_path.set_extension("2db");
+        }
+    }
 }
 
 fn make_matches() -> ArgMatches {
@@ -58,7 +132,7 @@ fn make_matches() -> ArgMatches {
                 .value_parser(value_parser!(PathBuf)),
         )
         .arg(
-            arg!(-o --output <OUTPUT_FILE> "Sets output file (extension is set automatically)")
+            arg!(-o --output <OUTPUT_FILE> "Sets output file (extension is set automatically, do not set one)")
                 .required(true)
                 .value_parser(value_parser!(PathBuf)),
         )
