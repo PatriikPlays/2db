@@ -369,7 +369,7 @@ pub fn img_2d_to_bytes(image: &Img2d) -> Result<Vec<u8>,io::Error> {
     //
     // Pixels
     //
-    bytes.extend(image.pixels.len().to_le_bytes());
+    bytes.extend((image.pixels.len() as u32).to_le_bytes());
     for v in image.pixels.iter() {
         bytes.push(v.to_le_bytes()[0]);
     }
@@ -386,7 +386,7 @@ pub fn img_2d_array_to_bytes(image: &Img2dArray) -> Result<Vec<u8>,io::Error> {
     //
     if image.title.is_some() {
         let title = image.title.as_ref().unwrap();
-        bytes.extend(title.len().to_le_bytes());
+        bytes.extend((title.len() as u16).to_le_bytes());
 
         for c in title.chars() {
             bytes.push(c as u8)
@@ -403,6 +403,13 @@ pub fn img_2d_array_to_bytes(image: &Img2dArray) -> Result<Vec<u8>,io::Error> {
     bytes.extend(image.width.to_le_bytes());
     bytes.extend(image.height.to_le_bytes());
     // Width and Height END
+
+    for page in image.pages.iter() {
+        let serialized_page = img_2d_to_bytes(page)?;
+
+        bytes.extend((serialized_page.len() as u32).to_le_bytes());
+        bytes.extend(serialized_page);
+    }
 
     return Ok(bytes);
 }

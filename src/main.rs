@@ -90,6 +90,7 @@ fn main() {
             fs::write(out_path, serde_json::to_string(&image_array).expect("Failed to parse image data to JSON")).expect("Failed to write to output file.");
         } else if output_format_type == poster::ImgFormat::Binary {
             out_path.set_extension("2dba");
+            fs::write(out_path,poster::img_2d_array_to_bytes(&image_array).expect("Failed to parse image data to bytes")).expect("Failed to write to output file.");
         }
     } else {
         let image: poster::Img2d;
