@@ -307,18 +307,102 @@ pub fn read_2dba(file: &PathBuf) -> Result<Img2dArray,io::Error> {
     return Ok(image_array);
 }
 
-pub fn write_2dj(image: Img2d) -> Result<bool,io::Error> {
-    return Err(io::Error::new(ErrorKind::Other, "Not implemented"));
+pub fn img_2d_to_string(image: &Img2d) -> Result<String,io::Error> {
+    return Ok(serde_json::to_string(image)?);
 }
 
-pub fn write_2dja(image: Img2dArray) -> Result<bool,io::Error> {
-    return Err(io::Error::new(ErrorKind::Other, "Not implemented"));
+pub fn img_2d_array_to_string(image: &Img2dArray) -> Result<String,io::Error> {
+    return Ok(serde_json::to_string(image)?);
 }
 
-pub fn write_2db(image: Img2d) -> Result<bool,io::Error> {
-    return Err(io::Error::new(ErrorKind::Other, "Not implemented"));
+pub fn img_2d_to_bytes(image: &Img2d) -> Result<Vec<u8>,io::Error> {
+    let mut bytes: Vec<u8> = Vec::new();
+
+    //
+    // Label
+    //
+    if image.label.is_some() {
+        let label = image.label.as_ref().unwrap();
+        bytes.extend((label.len() as u16).to_le_bytes());
+
+        for c in label.chars() {
+            bytes.push(c as u8)
+        }
+    } else {
+        bytes.push(0);
+        bytes.push(0);
+    }
+    // Label END
+
+    //
+    // Tooltip
+    //
+    if image.tooltip.is_some() {
+        let tooltip = image.tooltip.as_ref().unwrap();
+        bytes.extend((tooltip.len() as u16).to_le_bytes());
+
+        for c in tooltip.chars() {
+            bytes.push(c as u8)
+        }
+    } else {
+        bytes.push(0);
+        bytes.push(0);
+    }
+    // Tooltip END
+
+    //
+    // Width and Height
+    //
+    bytes.extend(image.width.to_le_bytes());
+    bytes.extend(image.height.to_le_bytes());
+    // Width and Height END
+
+    //
+    // Palette
+    //
+    bytes.push(image.palette.len() as u8);
+    for v in image.palette.iter() {
+        bytes.extend(v.to_le_bytes());
+    }
+    // Palette END
+
+    //
+    // Pixels
+    //
+    bytes.extend(image.pixels.len().to_le_bytes());
+    for v in image.pixels.iter() {
+        bytes.push(v.to_le_bytes()[0]);
+    }
+    // Pixels END
+
+    return Ok(bytes);
 }
 
-pub fn write_2dba(image: Img2dArray) -> Result<bool,io::Error> {
-    return Err(io::Error::new(ErrorKind::Other, "Not implemented"));
+pub fn img_2d_array_to_bytes(image: &Img2dArray) -> Result<Vec<u8>,io::Error> {
+    let mut bytes: Vec<u8> = Vec::new();
+
+    //
+    // Title
+    //
+    if image.title.is_some() {
+        let title = image.title.as_ref().unwrap();
+        bytes.extend(title.len().to_le_bytes());
+
+        for c in title.chars() {
+            bytes.push(c as u8)
+        }
+    } else {
+        bytes.push(0);
+        bytes.push(0);
+    }
+    // Title END
+
+    //
+    // Width and Height
+    //
+    bytes.extend(image.width.to_le_bytes());
+    bytes.extend(image.height.to_le_bytes());
+    // Width and Height END
+
+    return Ok(bytes);
 }

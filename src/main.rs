@@ -120,6 +120,7 @@ fn main() {
             fs::write(out_path, serde_json::to_string(&image).expect("Failed to parse image data to JSON")).expect("Failed to write to output file.");
         } else if output_format_type == poster::ImgFormat::Binary {
             out_path.set_extension("2db");
+            fs::write(out_path,poster::img_2d_to_bytes(&image).expect("Failed to parse image data to bytes")).expect("Failed to write to output file.");
         }
     }
 }
