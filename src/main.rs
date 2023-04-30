@@ -1,15 +1,21 @@
 mod poster;
 
+use clap::{arg, command, value_parser, ArgMatches};
 use std::fs;
-use clap::{arg, ArgMatches, command, value_parser};
 use std::path::PathBuf;
 
 fn main() {
     let matches = make_matches();
 
-    let input = matches.get_one::<PathBuf>("input").expect("Input argument doesn't exist, this shouldn't have happened");
-    let output = matches.get_one::<PathBuf>("output").expect("Output argument doesn't exist, this shouldn't have happened");
-    let output_format = matches.get_one::<String>("outformat").expect("Output format doesn't exist, this shouldn't have happened");
+    let input = matches
+        .get_one::<PathBuf>("input")
+        .expect("Input argument doesn't exist, this shouldn't have happened");
+    let output = matches
+        .get_one::<PathBuf>("output")
+        .expect("Output argument doesn't exist, this shouldn't have happened");
+    let output_format = matches
+        .get_one::<String>("outformat")
+        .expect("Output format doesn't exist, this shouldn't have happened");
 
     if !input.exists() {
         println!("Input file doesn't exist.");
@@ -50,7 +56,13 @@ fn main() {
         }
     };
 
-    let (input_format_type, is_image_array) = match input.extension().expect("Failed to get extension of input file.").to_ascii_lowercase().to_str().expect("Failed to convert input file extension to str.") {
+    let (input_format_type, is_image_array) = match input
+        .extension()
+        .expect("Failed to get extension of input file.")
+        .to_ascii_lowercase()
+        .to_str()
+        .expect("Failed to convert input file extension to str.")
+    {
         "2dj" => (poster::ImgFormat::JSON, false),
         "2db" => (poster::ImgFormat::Binary, false),
         "2dja" => (poster::ImgFormat::JSON, true),
@@ -68,16 +80,16 @@ fn main() {
             image_array = match poster::read_2dja(input) {
                 Ok(t) => t,
                 Err(e) => {
-                    println!("Failed to read input image array (2dja): {}",e);
-                    return
+                    println!("Failed to read input image array (2dja): {}", e);
+                    return;
                 }
             };
         } else if input_format_type == poster::ImgFormat::Binary {
             image_array = match poster::read_2dba(input) {
                 Ok(t) => t,
                 Err(e) => {
-                    println!("Failed to read input image array (2dba): {}",e);
-                    return
+                    println!("Failed to read input image array (2dba): {}", e);
+                    return;
                 }
             };
         } else {
@@ -87,10 +99,19 @@ fn main() {
         let mut out_path = output.clone();
         if output_format_type == poster::ImgFormat::JSON {
             out_path.set_extension("2dja");
-            fs::write(out_path, serde_json::to_string(&image_array).expect("Failed to parse image data to JSON")).expect("Failed to write to output file.");
+            fs::write(
+                out_path,
+                serde_json::to_string(&image_array).expect("Failed to parse image data to JSON"),
+            )
+            .expect("Failed to write to output file.");
         } else if output_format_type == poster::ImgFormat::Binary {
             out_path.set_extension("2dba");
-            fs::write(out_path,poster::img_2d_array_to_bytes(&image_array).expect("Failed to parse image data to bytes")).expect("Failed to write to output file.");
+            fs::write(
+                out_path,
+                poster::img_2d_array_to_bytes(&image_array)
+                    .expect("Failed to parse image data to bytes"),
+            )
+            .expect("Failed to write to output file.");
         }
     } else {
         let image: poster::Img2d;
@@ -99,16 +120,16 @@ fn main() {
             image = match poster::read_2dj(input) {
                 Ok(t) => t,
                 Err(e) => {
-                    println!("Failed to read input image (2dj): {}",e);
-                    return
+                    println!("Failed to read input image (2dj): {}", e);
+                    return;
                 }
             };
         } else if input_format_type == poster::ImgFormat::Binary {
             image = match poster::read_2db(input) {
                 Ok(t) => t,
                 Err(e) => {
-                    println!("Failed to read input image (2db): {}",e);
-                    return
+                    println!("Failed to read input image (2db): {}", e);
+                    return;
                 }
             };
         } else {
@@ -118,10 +139,18 @@ fn main() {
         let mut out_path = output.clone();
         if output_format_type == poster::ImgFormat::JSON {
             out_path.set_extension("2dj");
-            fs::write(out_path, serde_json::to_string(&image).expect("Failed to parse image data to JSON")).expect("Failed to write to output file.");
+            fs::write(
+                out_path,
+                serde_json::to_string(&image).expect("Failed to parse image data to JSON"),
+            )
+            .expect("Failed to write to output file.");
         } else if output_format_type == poster::ImgFormat::Binary {
             out_path.set_extension("2db");
-            fs::write(out_path,poster::img_2d_to_bytes(&image).expect("Failed to parse image data to bytes")).expect("Failed to write to output file.");
+            fs::write(
+                out_path,
+                poster::img_2d_to_bytes(&image).expect("Failed to parse image data to bytes"),
+            )
+            .expect("Failed to write to output file.");
         }
     }
 }

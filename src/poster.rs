@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
+use std::fmt::Formatter;
+use std::fs::File;
 use std::io::{BufReader, ErrorKind, Read};
 use std::path::PathBuf;
-use std::fs::File;
 use std::{fmt, io, u32};
-use std::fmt::Formatter;
 
 #[derive(Serialize, Deserialize)]
 pub struct Img2d {
@@ -12,12 +12,12 @@ pub struct Img2d {
     pub palette: Vec<u32>,
     pub pixels: Vec<u8>,
     pub width: u32,
-    pub height: u32
+    pub height: u32,
 }
 
 impl fmt::Display for Img2d {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f,"{}",serde_json::to_string(self).unwrap())
+        write!(f, "{}", serde_json::to_string(self).unwrap())
     }
 }
 
@@ -26,21 +26,20 @@ pub struct Img2dArray {
     pub width: u32,
     pub height: u32,
     pub title: Option<String>,
-    pub pages: Vec<Img2d>
+    pub pages: Vec<Img2d>,
 }
 
 impl fmt::Display for Img2dArray {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f,"{}",serde_json::to_string(self).unwrap())
+        write!(f, "{}", serde_json::to_string(self).unwrap())
     }
 }
 
 #[derive(PartialEq)]
 pub enum ImgFormat {
     Binary,
-    JSON
+    JSON,
 }
-
 
 fn read_file_as_bytes(file: &PathBuf) -> Result<Vec<u8>, io::Error> {
     let f = File::open(&file)?;
@@ -62,7 +61,7 @@ fn read_file_as_string(file: &PathBuf) -> Result<String, io::Error> {
     return Ok(data);
 }
 
-fn parse_byte_array_as_image(bytes: Vec<u8>) -> Result<Img2d,io::Error> {
+fn parse_byte_array_as_image(bytes: Vec<u8>) -> Result<Img2d, io::Error> {
     let bytes_length = bytes.len();
 
     let mut image = Img2d {
@@ -81,8 +80,17 @@ fn parse_byte_array_as_image(bytes: Vec<u8>) -> Result<Img2d,io::Error> {
     //
     let label_length: u16 = {
         if ptr + 1 + 2 <= bytes_length {
-            u16::from_le_bytes(bytes[ptr..ptr + 2].try_into().expect("Failed to get label length u16 (Input probably corrupted)"))
-        } else { return Err(io::Error::new(ErrorKind::InvalidInput, "Could not get label length u16 (Buffer would overflow)")) }
+            u16::from_le_bytes(
+                bytes[ptr..ptr + 2]
+                    .try_into()
+                    .expect("Failed to get label length u16 (Input probably corrupted)"),
+            )
+        } else {
+            return Err(io::Error::new(
+                ErrorKind::InvalidInput,
+                "Could not get label length u16 (Buffer would overflow)",
+            ));
+        }
     };
     ptr += 2;
 
@@ -90,7 +98,7 @@ fn parse_byte_array_as_image(bytes: Vec<u8>) -> Result<Img2d,io::Error> {
     if label_length != 0 {
         let start_ptr = ptr.clone();
         if start_ptr + 1 + label_length as usize <= bytes_length {
-            for _ in start_ptr..start_ptr+label_length as usize {
+            for _ in start_ptr..start_ptr + label_length as usize {
                 let char = bytes[ptr] as char;
                 if !char.is_ascii_control() {
                     label.push(char);
@@ -99,7 +107,12 @@ fn parse_byte_array_as_image(bytes: Vec<u8>) -> Result<Img2d,io::Error> {
                 }
                 ptr += 1;
             }
-        } else { return Err(io::Error::new(ErrorKind::InvalidInput, "Could not get label (Buffer would overflow)")) }
+        } else {
+            return Err(io::Error::new(
+                ErrorKind::InvalidInput,
+                "Could not get label (Buffer would overflow)",
+            ));
+        }
     }
     // Label END
 
@@ -108,8 +121,17 @@ fn parse_byte_array_as_image(bytes: Vec<u8>) -> Result<Img2d,io::Error> {
     //
     let tooltip_length: u16 = {
         if ptr + 1 + 2 <= bytes_length {
-            u16::from_le_bytes(bytes[ptr..ptr + 2].try_into().expect("Failed to get tooltip length u16 (Input probably corrupted)"))
-        } else { return Err(io::Error::new(ErrorKind::InvalidInput, "Could not get tooltip length u16 (Buffer would overflow)")) }
+            u16::from_le_bytes(
+                bytes[ptr..ptr + 2]
+                    .try_into()
+                    .expect("Failed to get tooltip length u16 (Input probably corrupted)"),
+            )
+        } else {
+            return Err(io::Error::new(
+                ErrorKind::InvalidInput,
+                "Could not get tooltip length u16 (Buffer would overflow)",
+            ));
+        }
     };
     ptr += 2;
 
@@ -117,7 +139,7 @@ fn parse_byte_array_as_image(bytes: Vec<u8>) -> Result<Img2d,io::Error> {
     if tooltip_length != 0 {
         let start_ptr = ptr.clone();
         if start_ptr + 1 + tooltip_length as usize <= bytes_length {
-            for _ in start_ptr..start_ptr+tooltip_length as usize {
+            for _ in start_ptr..start_ptr + tooltip_length as usize {
                 let char = bytes[ptr] as char;
                 if !char.is_ascii_control() {
                     tooltip.push(char);
@@ -126,7 +148,12 @@ fn parse_byte_array_as_image(bytes: Vec<u8>) -> Result<Img2d,io::Error> {
                 }
                 ptr += 1;
             }
-        } else { return Err(io::Error::new(ErrorKind::InvalidInput, "Could not get tooltip (Buffer would overflow)")) }
+        } else {
+            return Err(io::Error::new(
+                ErrorKind::InvalidInput,
+                "Could not get tooltip (Buffer would overflow)",
+            ));
+        }
     }
     // Tooltip END
 
@@ -135,15 +162,33 @@ fn parse_byte_array_as_image(bytes: Vec<u8>) -> Result<Img2d,io::Error> {
     //
     let width: u32 = {
         if ptr + 1 + 4 <= bytes_length {
-            u32::from_le_bytes(bytes[ptr..ptr + 4].try_into().expect("Failed to get width u32 (Input probably corrupted)"))
-        } else { return Err(io::Error::new(ErrorKind::InvalidInput, "Could not get width u32 (Buffer would overflow)")) }
+            u32::from_le_bytes(
+                bytes[ptr..ptr + 4]
+                    .try_into()
+                    .expect("Failed to get width u32 (Input probably corrupted)"),
+            )
+        } else {
+            return Err(io::Error::new(
+                ErrorKind::InvalidInput,
+                "Could not get width u32 (Buffer would overflow)",
+            ));
+        }
     };
     ptr += 4;
 
     let height: u32 = {
         if ptr + 1 + 4 <= bytes_length {
-            u32::from_le_bytes(bytes[ptr..ptr + 4].try_into().expect("Failed to get height u32 (Input probably corrupted)"))
-        } else { return Err(io::Error::new(ErrorKind::InvalidInput, "Could not get height u32 (Buffer would overflow)")) }
+            u32::from_le_bytes(
+                bytes[ptr..ptr + 4]
+                    .try_into()
+                    .expect("Failed to get height u32 (Input probably corrupted)"),
+            )
+        } else {
+            return Err(io::Error::new(
+                ErrorKind::InvalidInput,
+                "Could not get height u32 (Buffer would overflow)",
+            ));
+        }
     };
     ptr += 4;
     // Width and Height END
@@ -153,18 +198,36 @@ fn parse_byte_array_as_image(bytes: Vec<u8>) -> Result<Img2d,io::Error> {
     //
     let palette_length: u8 = {
         if ptr + 1 + 1 <= bytes_length {
-            u8::from_le_bytes(bytes[ptr..ptr + 1].try_into().expect("Failed to get palette length u8 (Input probably corrupted)"))
-        } else { return Err(io::Error::new(ErrorKind::InvalidInput, "Could not get palette length u8 (Buffer would overflow)")) }
+            u8::from_le_bytes(
+                bytes[ptr..ptr + 1]
+                    .try_into()
+                    .expect("Failed to get palette length u8 (Input probably corrupted)"),
+            )
+        } else {
+            return Err(io::Error::new(
+                ErrorKind::InvalidInput,
+                "Could not get palette length u8 (Buffer would overflow)",
+            ));
+        }
     };
     ptr += 1;
 
     let mut palette: Vec<u32> = Vec::new();
     if ptr + 1 + (palette_length as usize * 4) <= bytes_length {
-        for i in (ptr..ptr+(palette_length as usize*4)).step_by(4) {
-            palette.push(u32::from_le_bytes(bytes[i..i+4].try_into().expect("Failed to get palette (Input probably corrupted)")));
+        for i in (ptr..ptr + (palette_length as usize * 4)).step_by(4) {
+            palette.push(u32::from_le_bytes(
+                bytes[i..i + 4]
+                    .try_into()
+                    .expect("Failed to get palette (Input probably corrupted)"),
+            ));
             ptr += 4;
         }
-    } else { return Err(io::Error::new(ErrorKind::InvalidInput, "Could not get palette (Buffer would overflow)")) }
+    } else {
+        return Err(io::Error::new(
+            ErrorKind::InvalidInput,
+            "Could not get palette (Buffer would overflow)",
+        ));
+    }
     // Palette END
 
     //
@@ -172,17 +235,31 @@ fn parse_byte_array_as_image(bytes: Vec<u8>) -> Result<Img2d,io::Error> {
     //
     let pixels_length: u32 = {
         if ptr + 1 + 4 <= bytes_length {
-            u32::from_le_bytes(bytes[ptr..ptr + 4].try_into().expect("Failed to get pixels length u32 (Input probably corrupted)"))
-        } else { return Err(io::Error::new(ErrorKind::InvalidInput, "Could not get pixels length u32 (Buffer would overflow)")) }
+            u32::from_le_bytes(
+                bytes[ptr..ptr + 4]
+                    .try_into()
+                    .expect("Failed to get pixels length u32 (Input probably corrupted)"),
+            )
+        } else {
+            return Err(io::Error::new(
+                ErrorKind::InvalidInput,
+                "Could not get pixels length u32 (Buffer would overflow)",
+            ));
+        }
     };
     ptr += 4;
 
     let mut pixels: Vec<u8> = Vec::new();
     if ptr + pixels_length as usize <= bytes_length {
-        for i in ptr..ptr+(pixels_length as usize) {
+        for i in ptr..ptr + (pixels_length as usize) {
             pixels.push(bytes[i]);
         }
-    } else { return Err(io::Error::new(ErrorKind::InvalidInput, "Could not get pixels (Buffer would overflow)")) }
+    } else {
+        return Err(io::Error::new(
+            ErrorKind::InvalidInput,
+            "Could not get pixels (Buffer would overflow)",
+        ));
+    }
     // Pixels END
 
     image.label = Some(label);
@@ -195,7 +272,7 @@ fn parse_byte_array_as_image(bytes: Vec<u8>) -> Result<Img2d,io::Error> {
     return Ok(image);
 }
 
-pub fn read_2dj(file: &PathBuf) -> Result<Img2d,io::Error> {
+pub fn read_2dj(file: &PathBuf) -> Result<Img2d, io::Error> {
     let data = read_file_as_string(file)?;
 
     let image: Img2d = serde_json::from_str(&data)?;
@@ -203,7 +280,7 @@ pub fn read_2dj(file: &PathBuf) -> Result<Img2d,io::Error> {
     return Ok(image);
 }
 
-pub fn read_2dja(file: &PathBuf) -> Result<Img2dArray,io::Error> {
+pub fn read_2dja(file: &PathBuf) -> Result<Img2dArray, io::Error> {
     let data = read_file_as_string(file)?;
 
     let image_array: Img2dArray = serde_json::from_str(&data)?;
@@ -211,16 +288,15 @@ pub fn read_2dja(file: &PathBuf) -> Result<Img2dArray,io::Error> {
     return Ok(image_array);
 }
 
-
-pub fn read_2db(file: &PathBuf) -> Result<Img2d,io::Error> {
+pub fn read_2db(file: &PathBuf) -> Result<Img2d, io::Error> {
     let bytes = read_file_as_bytes(file)?;
 
-    let image : Img2d = parse_byte_array_as_image(bytes)?;
+    let image: Img2d = parse_byte_array_as_image(bytes)?;
 
     return Ok(image);
 }
 
-pub fn read_2dba(file: &PathBuf) -> Result<Img2dArray,io::Error> {
+pub fn read_2dba(file: &PathBuf) -> Result<Img2dArray, io::Error> {
     let bytes = read_file_as_bytes(file)?;
     let bytes_length = bytes.len();
 
@@ -236,18 +312,26 @@ pub fn read_2dba(file: &PathBuf) -> Result<Img2dArray,io::Error> {
     //
     // Title
     //
-    let title_length: u16 = {
-        if ptr + 1 + 2 <= bytes_length {
-            u16::from_le_bytes(bytes[ptr..ptr + 2].try_into().expect("Failed to get title length u16 of image array (Input probably corrupted)"))
-        } else { return Err(io::Error::new(ErrorKind::InvalidInput, "Could not get title length u16 of image array (Buffer would overflow)")) }
-    };
+    let title_length: u16 =
+        {
+            if ptr + 1 + 2 <= bytes_length {
+                u16::from_le_bytes(bytes[ptr..ptr + 2].try_into().expect(
+                    "Failed to get title length u16 of image array (Input probably corrupted)",
+                ))
+            } else {
+                return Err(io::Error::new(
+                    ErrorKind::InvalidInput,
+                    "Could not get title length u16 of image array (Buffer would overflow)",
+                ));
+            }
+        };
     ptr += 2;
 
     let mut title = String::new();
     if title_length != 0 {
         let start_ptr = ptr.clone();
         if start_ptr + 1 + title_length as usize <= bytes_length {
-            for _ in start_ptr..start_ptr+title_length as usize {
+            for _ in start_ptr..start_ptr + title_length as usize {
                 let char = bytes[ptr] as char;
                 if !char.is_ascii_control() {
                     title.push(char);
@@ -256,7 +340,12 @@ pub fn read_2dba(file: &PathBuf) -> Result<Img2dArray,io::Error> {
                 }
                 ptr += 1;
             }
-        } else { return Err(io::Error::new(ErrorKind::InvalidInput, "Could not get title of image array (Buffer would overflow)")) }
+        } else {
+            return Err(io::Error::new(
+                ErrorKind::InvalidInput,
+                "Could not get title of image array (Buffer would overflow)",
+            ));
+        }
     }
     // Title END
 
@@ -265,15 +354,33 @@ pub fn read_2dba(file: &PathBuf) -> Result<Img2dArray,io::Error> {
     //
     let width: u32 = {
         if ptr + 1 + 4 <= bytes_length {
-            u32::from_le_bytes(bytes[ptr..ptr + 4].try_into().expect("Failed to get width u32 of image array (Input probably corrupted)"))
-        } else { return Err(io::Error::new(ErrorKind::InvalidInput, "Could not get width u32 of image array (Buffer would overflow)")) }
+            u32::from_le_bytes(
+                bytes[ptr..ptr + 4]
+                    .try_into()
+                    .expect("Failed to get width u32 of image array (Input probably corrupted)"),
+            )
+        } else {
+            return Err(io::Error::new(
+                ErrorKind::InvalidInput,
+                "Could not get width u32 of image array (Buffer would overflow)",
+            ));
+        }
     };
     ptr += 4;
 
     let height: u32 = {
         if ptr + 1 + 4 <= bytes_length {
-            u32::from_le_bytes(bytes[ptr..ptr + 4].try_into().expect("Failed to get height u32 of image array (Input probably corrupted)"))
-        } else { return Err(io::Error::new(ErrorKind::InvalidInput, "Could not get height u32 of image array (Buffer would overflow)")) }
+            u32::from_le_bytes(
+                bytes[ptr..ptr + 4]
+                    .try_into()
+                    .expect("Failed to get height u32 of image array (Input probably corrupted)"),
+            )
+        } else {
+            return Err(io::Error::new(
+                ErrorKind::InvalidInput,
+                "Could not get height u32 of image array (Buffer would overflow)",
+            ));
+        }
     };
     ptr += 4;
     // Width and Height END
@@ -283,15 +390,24 @@ pub fn read_2dba(file: &PathBuf) -> Result<Img2dArray,io::Error> {
             let page_length: u32 = {
                 if ptr + 1 + 4 <= bytes_length {
                     u32::from_le_bytes(bytes[ptr..ptr + 4].try_into().expect("Failed to get page length u32 of image in array (Input probably corrupted)"))
-                } else { return Err(io::Error::new(ErrorKind::InvalidInput, "Could not get page length u32 of image in array (Buffer would overflow)")) }
+                } else {
+                    return Err(io::Error::new(
+                        ErrorKind::InvalidInput,
+                        "Could not get page length u32 of image in array (Buffer would overflow)",
+                    ));
+                }
             };
             ptr += 4;
 
             if ptr + page_length as usize > bytes_length {
-                return Err(io::Error::new(ErrorKind::InvalidInput, "Failed to read page of image in array (Buffer would overflow)"));
+                return Err(io::Error::new(
+                    ErrorKind::InvalidInput,
+                    "Failed to read page of image in array (Buffer would overflow)",
+                ));
             }
 
-            let image: Img2d = parse_byte_array_as_image(bytes[ptr..ptr+page_length as usize].to_vec())?;
+            let image: Img2d =
+                parse_byte_array_as_image(bytes[ptr..ptr + page_length as usize].to_vec())?;
             ptr += page_length as usize;
 
             image_array.pages.push(image);
@@ -307,15 +423,15 @@ pub fn read_2dba(file: &PathBuf) -> Result<Img2dArray,io::Error> {
     return Ok(image_array);
 }
 
-pub fn img_2d_to_string(image: &Img2d) -> Result<String,io::Error> {
+pub fn img_2d_to_string(image: &Img2d) -> Result<String, io::Error> {
     return Ok(serde_json::to_string(image)?);
 }
 
-pub fn img_2d_array_to_string(image: &Img2dArray) -> Result<String,io::Error> {
+pub fn img_2d_array_to_string(image: &Img2dArray) -> Result<String, io::Error> {
     return Ok(serde_json::to_string(image)?);
 }
 
-pub fn img_2d_to_bytes(image: &Img2d) -> Result<Vec<u8>,io::Error> {
+pub fn img_2d_to_bytes(image: &Img2d) -> Result<Vec<u8>, io::Error> {
     let mut bytes: Vec<u8> = Vec::new();
 
     //
@@ -378,7 +494,7 @@ pub fn img_2d_to_bytes(image: &Img2d) -> Result<Vec<u8>,io::Error> {
     return Ok(bytes);
 }
 
-pub fn img_2d_array_to_bytes(image: &Img2dArray) -> Result<Vec<u8>,io::Error> {
+pub fn img_2d_array_to_bytes(image: &Img2dArray) -> Result<Vec<u8>, io::Error> {
     let mut bytes: Vec<u8> = Vec::new();
 
     //
